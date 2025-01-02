@@ -68,7 +68,9 @@ func (handler *fileChangeHandler) Handle(writer http.ResponseWriter, request *ht
 	connection, err := websocket.Accept(writer, request, nil)
 
 	if err != nil {
-		log.Panic(err)
+		http.Error(writer, "Internal Server Error", http.StatusInternalServerError)
+
+		return
 	}
 
 	defer connection.CloseNow()
@@ -82,7 +84,9 @@ func (handler *fileChangeHandler) Handle(writer http.ResponseWriter, request *ht
 	oldStat, err := os.Stat(handler.fileName)
 
 	if err != nil {
-		log.Panic(err)
+		http.Error(writer, "Internal Server Error", http.StatusInternalServerError)
+
+		return
 	}
 
 	ticker := time.NewTicker(5 * time.Second)
@@ -95,21 +99,28 @@ func (handler *fileChangeHandler) Handle(writer http.ResponseWriter, request *ht
 			err = connection.Close(websocket.StatusNormalClosure, "")
 
 			if err != nil && websocket.CloseStatus(err) != websocket.StatusNormalClosure && websocket.CloseStatus(err) != websocket.StatusGoingAway {
-				log.Panic(err)
+				http.Error(writer, "Internal Server Error", http.StatusInternalServerError)
+
+				return
 			}
+
 			return
 		case <-ticker.C:
 			newStat, err := os.Stat(handler.fileName)
 
 			if err != nil {
-				log.Panic(err)
+				http.Error(writer, "Internal Server Error", http.StatusInternalServerError)
+
+				return
 			}
 
 			if oldStat.ModTime() != newStat.ModTime() {
 				err := connection.Close(websocket.StatusNormalClosure, "changed")
 
 				if err != nil && websocket.CloseStatus(err) != websocket.StatusNormalClosure && websocket.CloseStatus(err) != websocket.StatusGoingAway {
-					log.Panic(err)
+					http.Error(writer, "Internal Server Error", http.StatusInternalServerError)
+
+					return
 				}
 
 				return
